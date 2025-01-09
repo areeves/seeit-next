@@ -1,95 +1,99 @@
-import Image from "next/image";
+'use client';
+
+import React, { useEffect, useRef, useState } from 'react';
 import styles from "./page.module.css";
+import { OpenAI } from 'openai';
+import { classifyImage } from '@/helpers/classifyImage';
+import useLocalStorage from '@/hooks/useLocalStorage';
 
 export default function Home() {
+  const [apikey, setApikey] = useLocalStorage('apikey', '');
+  function handleChangeApikey(e: React.ChangeEvent<HTMLInputElement>) {
+    const newValue = e.target.value;
+    setApikey(newValue);
+  }
+
+  const videoRef = useRef<HTMLVideoElement|null>(null);
+  const imgRef = useRef<HTMLImageElement|null>(null);
+  const [description, setDescription] = useState('');
+  useEffect(() => {
+    const video = videoRef.current;
+    if(video) {
+      (async () => {
+        const stream = await navigator.mediaDevices.getUserMedia({video: { facingMode: 'environment' } });
+        video.srcObject = stream;
+        video.play();
+      })();
+    }
+    return () => {
+      if(video) {
+        video.pause();
+      }
+    };
+  }, []);
+
+  async function onCapture() {
+    setDescription('(Capturing...)');
+    const img = imgRef.current;
+    if(!img) {
+      throw new Error('imgRef is null');
+    }
+    img.src = '';
+    const v = videoRef.current;
+    if(!v) {
+      throw new Error('videoRef null');
+    }
+    const c = document.createElement('canvas');
+    c.width = v.videoWidth;
+    c.height = v.videoHeight;
+    const ctx = c.getContext('2d');
+    if(!ctx) {
+      throw new Error('Unable to get 2d context for canvas');
+    }
+    ctx.drawImage(v, 0, 0);
+    const dataUrl = c.toDataURL();
+    img.src = dataUrl;
+
+    setDescription('(Generating...)');
+    const client = new OpenAI({ apiKey: apikey, dangerouslyAllowBrowser: true });
+    const aiResponse = await classifyImage(client, dataUrl );
+    const newDescription = aiResponse.content ?? '';
+    setDescription(newDescription);
+    const speech = new SpeechSynthesisUtterance(newDescription);
+    speechSynthesis.speak(speech);
+
+  }
+
   return (
     <div className={styles.page}>
       <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>src/app/page.tsx</code>.
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+        <h2>Config</h2>
+        <form>
+          <p>
+            OpenAI API Key
+            <br />
+            <input type="text" value={apikey} onChange={handleChangeApikey} />
+          </p>
+          <p>
+            Image Source:
+            <br />
+            {'...'}
+          </p>
+        </form>
 
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
-        </div>
+        <h2>Capture</h2>
+        <video ref={videoRef} onClick={onCapture} />
+
+        <h2>Output</h2>
+        <p>
+          <img ref={imgRef} />
+        </p>
+        <p>{ description }</p>
       </main>
       <footer className={styles.footer}>
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
       </footer>
     </div>
   );
 }
+
+
