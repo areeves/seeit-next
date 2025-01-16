@@ -70,14 +70,8 @@ export default function Home() {
         <h2>Config</h2>
         <form>
           <p>
-            OpenAI API Key
-            <br />
+            {'OpenAI API Key: '}
             <input type="text" value={apikey} onChange={handleChangeApikey} />
-          </p>
-          <p>
-            Image Source:
-            <br />
-            {'...'}
           </p>
         </form>
 
