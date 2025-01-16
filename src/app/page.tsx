@@ -90,8 +90,6 @@ export default function Home() {
         </p>
         <p>{ description }</p>
       </main>
-      <footer className={styles.footer}>
-      </footer>
     </div>
   );
 }
